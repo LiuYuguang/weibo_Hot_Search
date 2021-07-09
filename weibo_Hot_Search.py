@@ -89,14 +89,14 @@ def dump(data):
 	day = now.strftime('%Y%m%d')
 	time = now.strftime('%H%M%S')
 
-	path = f'{base_path}/{day}/weibo_{time}.html'
+	path = f'{base_path}/html/{day}/weibo_{time}.html'
 	dirname = os.path.dirname(path)
 	if not os.path.isdir(dirname):
 		os.makedirs(dirname)
 	with open(path,'w') as f:
 		f.write(data)
 
-db = sqlite3.connect(base_path + "/weibo.db")
+db = sqlite3.connect(base_path + "/hot.db")
 def create_db():
 	cursor = db.cursor()
 	cursor.execute(f'CREATE TABLE IF NOT EXISTS WEIBO_HOT (UPDATETIME INTEGER NOT NULL, RANK INTEGER NOT NULL, TOPIC TEXT, COUNT INTEGER, ATTACH TEXT, PRIMARY KEY(UPDATETIME,RANK));')
