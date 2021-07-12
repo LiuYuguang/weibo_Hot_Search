@@ -8,11 +8,7 @@ import sqlite3
 import logging
 import logging.handlers
 
-base_path = os.getenv('HOME')
-if base_path != None:
-	base_path += '/Documents/Hot_Search'
-else:
-	base_path = '/home/lyg001/Documents/Hot_Search'
+base_path = os.getenv('HOME') + '/Documents/Hot_Search'
 
 if not os.path.isdir(base_path):
 	os.makedirs(base_path)

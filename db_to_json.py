@@ -3,7 +3,7 @@ import datetime
 import json
 import os
 
-base_path = '/home/lyg001/Documents/Hot_Search'
+base_path = os.getenv('HOME') + '/Documents/Hot_Search'
 
 if __name__ == '__main__':
     today = datetime.datetime.today()
@@ -29,11 +29,11 @@ if __name__ == '__main__':
     
     #print(weibo_data_all)
     db.close()
-    json_filename = 'weibo_%04d%02d%02d.json'%(yesterday.year,yesterday.month,yesterday.day)
+    json_filename = '/weibo_%04d%02d%02d.json'%(yesterday.year,yesterday.month,yesterday.day)
     json_path = f'{base_path}/data/{yesterday.year}/{yesterday.month}'
     if not os.path.isdir(json_path):
         os.makedirs(json_path)
-    with open(json_path + '/' + json_filename,'w',encoding='utf8') as f:
+    with open(json_path + json_filename,'w',encoding='utf8') as f:
         json.dump(weibo_data_all,f, indent=1, ensure_ascii=False)
 
 
