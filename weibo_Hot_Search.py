@@ -7,9 +7,17 @@ import sqlite3
 
 import logging
 import logging.handlers
-base_path = '/home/lyg001/Documents/Hot_Search'
 
-log_path = f'{base_path}/log'
+base_path = os.getenv('HOME')
+if base_path != None:
+	base_path += '/Documents/Hot_Search'
+else:
+	base_path = '/home/lyg001/Documents/Hot_Search'
+
+if not os.path.isdir(base_path):
+	os.makedirs(base_path)
+
+log_path = base_path + '/log'
 if not os.path.isdir(log_path):
 	os.makedirs(log_path)
 
@@ -21,31 +29,25 @@ def crawl():
 	url = 'https://s.weibo.com/top/summary'
 	headers = {}
 	headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36'
-	headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8'
-	headers['Connection'] = 'keep-alive'
+	headers['Connection'] = 'close'
 	headers['Referer'] = 'https://weibo.com/'
-	try:
-		r = requests.get(url,headers=headers,timeout=10)
-		return r.text
-	except Exception as e:
-		logging.error(f'str(e)')
-		return None
+	headers['Content-Encoding'] = 'gzip'
 
+	r = requests.get(url,headers=headers,timeout=10)
+	return r.text
+	
 def analyze(data):
-	data_list = []
-
 	soup = bs4.BeautifulSoup(data,features="html.parser")
 
 	div = soup.find('div',attrs={'class':'data','id':'pl_top_realtimehot'})
 	if div == None:
-		logging.error('<div class="data" id="pl_top_realtimehot"> no found')
-		return data_list
+		raise ValueError('<div class="data" id="pl_top_realtimehot"> no found')
 	
 	tbody = div.find('tbody')
 	if tbody == None:
-		logging.error('<tbody> no found')
-		return data_list
+		raise ValueError('<tbody> no found')
 
+	data_list = []
 	now = datetime.datetime.now()
 	now = int(now.timestamp())
 
@@ -71,11 +73,11 @@ def analyze(data):
 		
 		logging.info(f'{td_icon},{td_rank},{td_topic},{td_count},{td_attach}')
 		
-		if not td_rank.isnumeric():
+		if td_rank == None or not td_rank.isnumeric():
 			continue
 			
 		td_rank = int(td_rank)
-		if not td_count.isnumeric():
+		if td_count == None or not td_count.isnumeric():
 			td_count = 0
 		else:
 			td_count = int(td_count)
@@ -85,6 +87,9 @@ def analyze(data):
 	return data_list
 
 def dump(data):
+	if not isinstance(data,str):
+		raise ValueError('data not str')
+
 	now = datetime.datetime.now()
 	day = now.strftime('%Y%m%d')
 	time = now.strftime('%H%M%S')
@@ -99,7 +104,7 @@ def dump(data):
 db = sqlite3.connect(base_path + "/hot.db")
 def create_db():
 	cursor = db.cursor()
-	cursor.execute(f'CREATE TABLE IF NOT EXISTS WEIBO_HOT (UPDATETIME INTEGER NOT NULL, RANK INTEGER NOT NULL, TOPIC TEXT, COUNT INTEGER, ATTACH TEXT, PRIMARY KEY(UPDATETIME,RANK));')
+	cursor.execute('CREATE TABLE IF NOT EXISTS WEIBO_HOT (UPDATETIME INTEGER NOT NULL, RANK INTEGER NOT NULL, TOPIC TEXT, COUNT INTEGER, ATTACH TEXT, PRIMARY KEY(UPDATETIME,RANK));')
 	db.commit()
 	cursor.close()
 	pass
@@ -107,19 +112,20 @@ def create_db():
 def insert_db(data_list):
 	cursor = db.cursor()
 	for updatetime,rank,topic,count,attach in data_list:
-		cursor.execute(f'INSERT INTO WEIBO_HOT (UPDATETIME, RANK, TOPIC, COUNT, ATTACH) VALUES (?,?,?,?,?);',(updatetime,rank,topic,count,attach))
+		cursor.execute('INSERT INTO WEIBO_HOT (UPDATETIME, RANK, TOPIC, COUNT, ATTACH) VALUES (?,?,?,?,?);',(updatetime,rank,topic,count,attach))
 	db.commit()
 	cursor.close()
 	pass
 
 if __name__ == '__main__':
-	data = crawl()
-	if data == None:
-		exit(0)
-	
-	dump(data)
-	
-	data_list = analyze(data)
+	try:
+		data = crawl()
+		
+		dump(data)
+		
+		data_list = analyze(data)
 
-	create_db()
-	insert_db(data_list)
+		create_db()
+		insert_db(data_list)
+	except Exception as e:
+		logging.error(str(e))
