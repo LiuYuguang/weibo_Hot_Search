@@ -4,6 +4,10 @@ import bs4
 import datetime
 import os
 import sqlite3
+import chardet
+import json
+import random
+from http.cookiejar import LWPCookieJar
 
 import logging
 import logging.handlers
@@ -20,16 +24,104 @@ if not os.path.isdir(log_path):
 TimeHandler = logging.handlers.TimedRotatingFileHandler(log_path + '/log',when='MIDNIGHT')
 TimeHandler.suffix = '%Y%m%d'
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(message)s',level = logging.DEBUG,handlers = [TimeHandler])
+# logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(message)s',handlers = [TimeHandler])
+
+headers = {}
+headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36'
+headers['Connection'] = 'close'
+headers['Referer'] = 'https://weibo.com/'
+headers['Content-Encoding'] = 'gzip'
+
+def get_cookies():
+	r = requests.get('https://passport.weibo.com/js/visitor/mini_original.js?v=20161116',headers=headers,timeout=10)
+	path = f'{base_path}/html/mini_original.js'
+	with open(path,'wb') as f:
+		f.write(r.content)
+
+	data = {
+		'cb': 'gen_callback',
+		'fp': {
+			"os":"1",
+			"browser":"Chrome96,0,4664,55",
+			"fonts":"undefined",
+			"screenInfo":"1920*1080*24",
+			"plugins":"undefined",
+			# "plugins":"Portable Document Format::internal-pdf-viewer::PDF Viewer|Portable Document Format::internal-pdf-viewer::Chrome PDF Viewer|Portable Document Format::internal-pdf-viewer::Chromium PDF Viewer|Portable Document Format::internal-pdf-viewer::Microsoft Edge PDF Viewer|Portable Document Format::internal-pdf-viewer::WebKit built-in PDF",
+			}
+	}
+	r = requests.post('https://passport.weibo.com/visitor/genvisitor',data=data)
+	logging.info(f'http status code {r.status_code}')
+	logging.info(r.text)
+	if r.status_code != 200:
+		raise ValueError(f'http response {r.status_code}')
+	matchobj = re.match('.*?\((.*?)\)',r.text)
+	if matchobj == None:
+		raise ValueError(f'match fail')
+
+	gen_callback = matchobj.group(1)
+	logging.info(f"match {gen_callback}")
+	gen_callback = json.loads(gen_callback)
+	retcode = gen_callback['retcode']
+	if retcode != 20000000:
+		raise ValueError(f'retcode {retcode}')
+	
+	tid = gen_callback['data']['tid']
+	confidence = ''
+	if gen_callback['data'].get('confidence') != None:
+		confidence = '%03d'%(int(gen_callback['data']['confidence']))
+	
+	
+	params = {
+		'a':'incarnate',
+		't':tid,
+		'w':2,
+		'c':confidence,
+		'gc':'',
+		'cb':'cross_domain',
+		'from':'weibo',
+		'_rand':random.random(),
+	}
+
+	r = requests.get('https://passport.weibo.com/visitor/visitor',params=params)
+	logging.info(f'http status code {r.status_code}')
+	logging.info(r.text)
+	if r.status_code != 200:
+		raise ValueError(f'http response {r.status_code}')
+	matchobj = re.match('.*?\((.*?)\)',r.text)
+	if matchobj == None:
+		raise ValueError(f'match fail')
+	cross_domain = matchobj.group(1)
+	logging.info(f"match {cross_domain}")
+	cross_domain = json.loads(cross_domain)
+	retcode = cross_domain['retcode']
+	if retcode != 20000000:
+		raise ValueError(f'retcode {retcode}')
+	
+	cookies = {}
+	for k in cross_domain['data'].keys():
+		cookies[k.upper()] = cross_domain['data'][k]
+
+	cookieJar = LWPCookieJar()
+	requests.utils.cookiejar_from_dict(cookies,cookieJar)
+	cookieJar.save('cookie.txt',ignore_discard=True, ignore_expires=True)
 
 def crawl():
-	url = 'https://s.weibo.com/top/summary'
-	headers = {}
-	headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36'
-	headers['Connection'] = 'close'
-	headers['Referer'] = 'https://weibo.com/'
-	headers['Content-Encoding'] = 'gzip'
+	if not os.access('cookie.txt',os.F_OK):
+		get_cookies()
+	
+	cookieJar = LWPCookieJar()
+	cookieJar.load('cookie.txt',ignore_discard=True, ignore_expires=True)
+	r = requests.get('https://s.weibo.com/top/summary',headers=headers,cookies=cookieJar,allow_redirects=False,timeout=10)
+	logging.info(f'http status code {r.status_code}')
+	if r.status_code == 200:
+		return r.text
 
-	r = requests.get(url,headers=headers,timeout=10)
+	get_cookies()
+	
+	cookieJar = LWPCookieJar()
+	cookieJar.load('cookie.txt',ignore_discard=True, ignore_expires=True)
+	r = requests.get('https://s.weibo.com/top/summary',headers=headers,cookies=cookieJar,allow_redirects=False,timeout=10)
+	logging.info(f'http status code {r.status_code}')
 	return r.text
 	
 def analyze(data):
