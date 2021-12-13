@@ -12,7 +12,8 @@ from http.cookiejar import LWPCookieJar
 import logging
 import logging.handlers
 
-base_path = os.getenv('HOME') + '/Documents/Hot_Search'
+# base_path = os.getenv('HOME') + '/Documents/Hot_Search'
+base_path = '.'
 
 if not os.path.isdir(base_path):
 	os.makedirs(base_path)
@@ -24,7 +25,6 @@ if not os.path.isdir(log_path):
 TimeHandler = logging.handlers.TimedRotatingFileHandler(log_path + '/log',when='MIDNIGHT')
 TimeHandler.suffix = '%Y%m%d'
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(message)s',level = logging.DEBUG,handlers = [TimeHandler])
-# logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(message)s',handlers = [TimeHandler])
 
 headers = {}
 headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36'
@@ -69,7 +69,6 @@ def get_cookies():
 	confidence = ''
 	if gen_callback['data'].get('confidence') != None:
 		confidence = '%03d'%(int(gen_callback['data']['confidence']))
-	
 	
 	params = {
 		'a':'incarnate',
