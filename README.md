@@ -62,3 +62,7 @@ python db_to_json.py
 ---
 # 接口来源
 使用的是新浪微博的公开热搜榜单 链接：<https://s.weibo.com/top/summary>
+
+---
+# 2021/12/10
+新增获取cookie
