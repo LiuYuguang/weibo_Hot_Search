@@ -3,7 +3,8 @@ import datetime
 import json
 import os
 
-base_path = os.getenv('HOME') + '/Documents/Hot_Search'
+# base_path = os.getenv('HOME') + '/Documents/Hot_Search'
+base_path = '.'
 
 if __name__ == '__main__':
     today = datetime.datetime.today()
